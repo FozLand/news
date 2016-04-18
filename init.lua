@@ -1,6 +1,6 @@
 local news = {}
+news.articles = {'Change Log', 'Rules', 'Privileges'}
 news.path = minetest.get_worldpath().."news/"
-news.hash_file  = news.path..'news.sum'
 news.stamp_file = news.path..'news_stamps.mt'
 
 local stamps = {}
@@ -11,15 +11,16 @@ if file then
 end
 news.news_stamps = stamps or {}
 
-function news.read_hash_file()
-	local file = io.open(news.hash_file, "r")
-	local news_h
+function news.get_modified_time()
+	local last_modified
+	-- retrieve the first articles last modified time. Linux only!
+	local cmd = "stat -c %Y "..'"'..news.path..news.articles[1]..'"'
+	local file = io.popen(cmd)
 	if file then
-		local news_hfile_content = file:read("*all")
+		last_modified = file:read()
 		file:close()
-		news_h = string.match(news_hfile_content, "(%w+)")
 	end
-	return news_h
+	return last_modified or nil
 end
 
 function news.write_stamp_file(stamps)
@@ -32,10 +33,8 @@ end
 
 function news.formspec(player,article)
 
-	local articles = {'Change Log', 'Rules', 'Privileges'}
-
 	if ( article == "" or article == nil ) then
-		article = articles[1]
+		article = news.articles[1]
 	end
 
 	local newscontent = ''
@@ -48,7 +47,7 @@ function news.formspec(player,article)
 	end
 
 	local index = 1
-	for i,v in ipairs(articles) do
+	for i,v in ipairs(news.articles) do
 		if v == article then
 			index = i
 			break
@@ -61,7 +60,7 @@ function news.formspec(player,article)
 		"]"..
 		"label[0,8;Articles]"..
 		"dropdown[0,8.5;3,1;article;"..
-			table.concat(articles,",")..";"..index..
+			table.concat(news.articles,",")..";"..index..
 		"]"..
 		"button_exit[6,8.4;2,1;exit;Close]"
 
@@ -79,7 +78,7 @@ end
 
 minetest.register_on_joinplayer(function (player)
 	local name = player:get_player_name()
-	local news_hash = news.read_hash_file()
+	local news_hash = news.get_modified_time()
 	if news.news_stamps[name] ~= news_hash then
 		news.news_stamps[name] = news_hash
 		minetest.after(5,news.show_formspec,player)
